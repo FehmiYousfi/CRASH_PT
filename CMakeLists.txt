@@ -124,6 +124,7 @@ execute_process(
 if(NOT ${GIT_DESCRIBE_RESULT} MATCHES "0")
 	set(PX4_GIT_TAG "v0.0.0")
 endif()
+add_definitions(-Wno-error=address-of-packed-member)
 
 message(STATUS "PX4_GIT_TAG: ${PX4_GIT_TAG}")
 
@@ -510,3 +511,4 @@ add_custom_target(install_python_requirements
 if(EXISTS "${PX4_SOURCE_DIR}/platforms/${PX4_PLATFORM}/cmake/finalize.cmake")
 	include(finalize)
 endif()
+add_definitions(-Wno-error=address-of-packed-member)

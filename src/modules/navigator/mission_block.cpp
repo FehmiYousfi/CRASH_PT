@@ -559,7 +559,7 @@ MissionBlock::issue_command(const mission_item_s &item)
 float
 MissionBlock::get_time_inside(const mission_item_s &item) const
 {
-	if ((item.nav_cmd == NAV_CMD_WAYPOINT
+	if (((item.nav_cmd == NAV_CMD_WAYPOINT || item.nav_cmd == NAV_CMD_CRASHPOINT)
 	     && _navigator->get_vstatus()->vehicle_type == vehicle_status_s::VEHICLE_TYPE_ROTARY_WING) ||
 	    item.nav_cmd == NAV_CMD_LOITER_TIME_LIMIT ||
 	    item.nav_cmd == NAV_CMD_DELAY) {
@@ -589,6 +589,7 @@ bool
 MissionBlock::item_contains_position(const mission_item_s &item)
 {
 	return item.nav_cmd == NAV_CMD_WAYPOINT ||
+	       item.nav_cmd == NAV_CMD_CRASHPOINT ||
 	       item.nav_cmd == NAV_CMD_LOITER_UNLIMITED ||
 	       item.nav_cmd == NAV_CMD_LOITER_TIME_LIMIT ||
 	       item.nav_cmd == NAV_CMD_LAND ||

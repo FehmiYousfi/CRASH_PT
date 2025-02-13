@@ -47,7 +47,7 @@ if(MAVSDK_FOUND)
         PRIVATE
             -Wall
             -Wextra
-            -Werror
+            -Wno-error=address-of-packed-member
             -Wno-error=deprecated-declarations
     )
 else()

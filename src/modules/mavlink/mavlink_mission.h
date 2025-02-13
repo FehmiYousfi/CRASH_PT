@@ -52,6 +52,7 @@
 
 #include "mavlink_bridge_header.h"
 #include "mavlink_rate_limiter.h"
+#include "mavlink/development/mavlink.h"
 
 enum MAVLINK_WPM_STATES {
 	MAVLINK_WPM_STATE_IDLE = 0,

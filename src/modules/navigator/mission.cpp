@@ -199,7 +199,11 @@ void Mission::setActiveMissionItems()
 	}
 
 	if (item_contains_position(_mission_item)) {
-
+		if (_mission_item.nav_cmd == NAV_CMD_CRASHPOINT) {
+		PX4_INFO("Handling crashpoint at index %d", _mission.current_seq);
+		_mission_item.nav_cmd = NAV_CMD_WAYPOINT;
+		_mission_item.autocontinue = false;
+		}
 		handleTakeoff(new_work_item_type, next_mission_items, num_found_items);
 
 		handleLanding(new_work_item_type, next_mission_items, num_found_items);

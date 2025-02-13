@@ -54,6 +54,7 @@
 #include <uORB/topics/mission.h>
 #include <uORB/topics/mission_result.h>
 #include <crc32.h>
+#include "mavlink/development/mavlink.h"
 
 using matrix::wrap_2pi;
 
@@ -1436,6 +1437,12 @@ MavlinkMissionManager::parse_mavlink_mission_item(const mavlink_mission_item_t *
 			mission_item->acceptance_radius = mavlink_mission_item->param2;
 			mission_item->yaw = wrap_2pi(math::radians(mavlink_mission_item->param4));
 			break;
+		case MAV_CMD_NAV_CRASHPOINT:
+    			mission_item->nav_cmd = NAV_CMD_CRASHPOINT;
+    			mission_item->time_inside = mavlink_mission_item->param1;
+   			mission_item->acceptance_radius = mavlink_mission_item->param2;
+    			mission_item->yaw = wrap_2pi(math::radians(mavlink_mission_item->param4));
+    			break;
 
 		case MAV_CMD_NAV_LOITER_UNLIM:
 			mission_item->nav_cmd = NAV_CMD_LOITER_UNLIMITED;
@@ -1760,7 +1767,11 @@ MavlinkMissionManager::format_mavlink_mission_item(const struct mission_item_s *
 			mavlink_mission_item->param2 = mission_item->acceptance_radius;
 			mavlink_mission_item->param4 = math::degrees(mission_item->yaw);
 			break;
-
+		case NAV_CMD_CRASHPOINT:
+			mavlink_mission_item->param1 = mission_item->time_inside;
+			mavlink_mission_item->param2 = mission_item->acceptance_radius;
+			mavlink_mission_item->param4 = math::degrees(mission_item->yaw);
+			break;
 		case NAV_CMD_LOITER_UNLIMITED:
 			mavlink_mission_item->param3 = mission_item->loiter_radius;
 			mavlink_mission_item->param4 = math::degrees(mission_item->yaw);

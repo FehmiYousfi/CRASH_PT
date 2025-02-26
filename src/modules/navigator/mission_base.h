@@ -58,7 +58,99 @@
 #include "mission_block.h"
 #include "navigation.h"
 
+constexpr double EARTH_RADIUS = 6371000.0;
+constexpr double CRASH_MULTIPLER = 1.9;
+
 using namespace time_literals;
+
+class UpdatedMissionHandler
+{
+	public:
+		UpdatedMissionHandler(){
+			memset(&_prev_mission, 0, sizeof(_prev_mission));
+			memset(&_crash_point_mission, 0, sizeof(_crash_point_mission));
+			memset(&_virtual_point_mission, 0, sizeof(_virtual_point_mission));
+			PX4_INFO("UpdatedMissionHandler initialized");
+		};
+		~UpdatedMissionHandler(){
+			PX4_INFO("UpdatedMissionHandler destroyed");
+		};
+		void UpdatePrevMissionBeforeCrash(const mission_item_s Current_Mission){
+			_prev_mission = Current_Mission;
+			PX4_INFO("Previous mission before crash updated");
+		};
+		void UpdateActualCrashPoint(const mission_item_s LastIndexMission_Mission){
+			_crash_point_mission = LastIndexMission_Mission;
+			PX4_INFO("Crash point mission updated");
+		};
+		void ResetMissionHandler(){
+			memset(&_prev_mission, 0, sizeof(_prev_mission));
+			memset(&_crash_point_mission, 0, sizeof(_crash_point_mission));
+			memset(&_virtual_point_mission, 0, sizeof(_virtual_point_mission));
+			PX4_INFO("Mission handler reset: all mission states cleared");
+		}
+		void CalculateVirtualWaypoint(){
+			double lat_diff;
+			double lon_diff;
+			float alt_diff;
+
+			CalculateMissionItemDifference(_prev_mission,_crash_point_mission,lat_diff,lon_diff,alt_diff);
+			printDistance(_prev_mission.lon,_prev_mission.lat,_crash_point_mission.lon,_crash_point_mission.lat);
+			_virtual_point_mission = _prev_mission;
+			_virtual_point_mission.lat += (static_cast<double>(CRASH_MULTIPLER)*lat_diff);
+			_virtual_point_mission.lon += (static_cast<double>(CRASH_MULTIPLER)*lon_diff);
+			_virtual_point_mission.altitude += (static_cast<float>(CRASH_MULTIPLER)*alt_diff);
+			printDistanceVirtual(_prev_mission.lon,_prev_mission.lat,_virtual_point_mission.lon,_virtual_point_mission.lat);
+		};
+		void InjectNewVirtualPoint();
+
+		mission_item_s _prev_mission;
+		mission_item_s _crash_point_mission;
+		mission_item_s _virtual_point_mission;
+		bool nokillvalue = true;
+
+	private:
+		double toRadians(double degrees) {
+			return degrees * M_PI / 180.0;
+		}
+		void printDistance(double lon1, double lat1, double lon2, double lat2) {
+			double lat1Rad = toRadians(lat1);
+			double lon1Rad = toRadians(lon1);
+			double lat2Rad = toRadians(lat2);
+			double lon2Rad = toRadians(lon2);
+			double dLat = lat2Rad - lat1Rad;
+			double dLon = lon2Rad - lon1Rad;
+			double a = std::sin(dLat / 2) * std::sin(dLat / 2) +
+				std::cos(lat1Rad) * std::cos(lat2Rad) *
+				std::sin(dLon / 2) * std::sin(dLon / 2);
+
+			double c = 2 * std::atan2(std::sqrt(a), std::sqrt(1 - a));
+			double distance = EARTH_RADIUS * c;
+			PX4_INFO("Distance: %.2f meters from last mission point to actual crash point",distance);
+		}
+		void printDistanceVirtual(double lon1, double lat1, double lon2, double lat2) {
+			double lat1Rad = toRadians(lat1);
+			double lon1Rad = toRadians(lon1);
+			double lat2Rad = toRadians(lat2);
+			double lon2Rad = toRadians(lon2);
+			double dLat = lat2Rad - lat1Rad;
+			double dLon = lon2Rad - lon1Rad;
+			double a = std::sin(dLat / 2) * std::sin(dLat / 2) +
+				std::cos(lat1Rad) * std::cos(lat2Rad) *
+				std::sin(dLon / 2) * std::sin(dLon / 2);
+
+			double c = 2 * std::atan2(std::sqrt(a), std::sqrt(1 - a));
+			double distance = EARTH_RADIUS * c;
+			PX4_INFO("Distance: %.2f meters from last mission point to virtual point",distance);
+		}
+		void CalculateMissionItemDifference( mission_item_s &prev_item,  mission_item_s &crash_item,
+											double &lat_diff, double &lon_diff, float &alt_diff){
+			lat_diff = crash_item.lat - prev_item.lat;
+			lon_diff = crash_item.lon - prev_item.lon;
+			alt_diff = crash_item.altitude - prev_item.altitude;
+			PX4_INFO("Mission item differences: lat_diff=%.7f, lon_diff=%.7f, alt_diff=%.2f",lat_diff, lon_diff, static_cast<double>(alt_diff));
+		};
+};
 
 class Navigator;
 
@@ -67,6 +159,7 @@ class MissionBase : public MissionBlock, public ModuleParams
 public:
 	MissionBase(Navigator *navigator, int32_t dataman_cache_size_signed, uint8_t navigator_state_id);
 	~MissionBase() override = default;
+	UpdatedMissionHandler CrashPointManager;
 
 	virtual void on_inactive() override;
 	virtual void on_inactivation() override;

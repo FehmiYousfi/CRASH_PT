@@ -61,6 +61,7 @@
 #include <px4_platform_common/events.h>
 
 using namespace time_literals;
+bool BUILD_TESTS_NUM_WP = true;
 
 static constexpr int32_t DEFAULT_MISSION_CACHE_SIZE = 10;
 
@@ -149,6 +150,15 @@ Mission::do_need_move_to_takeoff()
 	return false;
 }
 
+#include <px4_log.h> // Ensure you have PX4_INFO available
+
+void PrintMissionItem_____( mission_item_s mission_item) {
+    PX4_INFO("Mission Item:");
+    PX4_INFO("  Latitude: %.7f", mission_item.lat);
+    PX4_INFO("  Longitude: %.7f", mission_item.lon);
+    PX4_INFO("  Altitude: %.2f", (double)mission_item.altitude);
+}
+
 void Mission::setActiveMissionItems()
 {
 	/* Get mission item that comes after current if available */
@@ -175,39 +185,84 @@ void Mission::setActiveMissionItems()
 		}
 	}
 
-	/*********************************** handle mission item *********************************************/
-	WorkItemType new_work_item_type = WorkItemType::WORK_ITEM_TYPE_DEFAULT;
-
-	position_setpoint_triplet_s *pos_sp_triplet = _navigator->get_position_setpoint_triplet();
-	const position_setpoint_s current_setpoint_copy = pos_sp_triplet->current;
-
-	/* Skip VTOL/FW Takeoff item if in air, fixed-wing and didn't start the takeoff already*/
-	if ((_mission_item.nav_cmd == NAV_CMD_VTOL_TAKEOFF || _mission_item.nav_cmd == NAV_CMD_TAKEOFF) &&
-	    (_work_item_type == WorkItemType::WORK_ITEM_TYPE_DEFAULT) &&
-	    (_vehicle_status_sub.get().vehicle_type == vehicle_status_s::VEHICLE_TYPE_FIXED_WING) &&
-	    !_land_detected_sub.get().landed) {
-		if (setNextMissionItem()) {
-			if (!loadCurrentMissionItem()) {
-				setEndOfMissionItems();
-				return;
-			}
-
-		} else {
-			setEndOfMissionItems();
-			return;
-		}
+    /*********************************** handle mission item *********************************************/
+    if (BUILD_TESTS_NUM_WP){
+        mavlink_log_info(_navigator->get_mavlink_log_pub(), "Current Mission Index: %d / Total Missions: %d", _mission.current_seq, _mission.count);
+	if(!((_mission.count -_mission.current_seq)==1)||(_mission.count -_mission.current_seq==2)){
+		CrashPointManager.UpdatePrevMissionBeforeCrash(_mission_item);
+		PrintMissionItem_____(CrashPointManager._prev_mission);
 	}
+	else {
+		mavlink_log_info(_navigator->get_mavlink_log_pub(), "Last Mission Detected Verifiying integrity of crash point");
+		CrashPointManager.UpdateActualCrashPoint(_mission_item);
+		CrashPointManager._virtual_point_mission = CrashPointManager._prev_mission;
+		CrashPointManager.CalculateVirtualWaypoint();
+		PrintMissionItem_____(CrashPointManager._virtual_point_mission);
+		_mission_item = CrashPointManager._virtual_point_mission;
+	}
+    }
+    else {
+	if(!(_mission_item.nav_cmd == NAV_CMD_CRASHPOINT)){
+		CrashPointManager.UpdatePrevMissionBeforeCrash(_mission_item);
+		PrintMissionItem_____(CrashPointManager._prev_mission);
+	}
+	else {
+		mavlink_log_info(_navigator->get_mavlink_log_pub(), "Crash Mission Detected Verifiying integrity of crash point");
+		CrashPointManager.UpdateActualCrashPoint(_mission_item);
+		CrashPointManager._virtual_point_mission = CrashPointManager._prev_mission;
+		CrashPointManager.CalculateVirtualWaypoint();
+		PrintMissionItem_____(CrashPointManager._virtual_point_mission);
+		_mission_item = CrashPointManager._virtual_point_mission;
+	}
+    }
+    WorkItemType new_work_item_type = WorkItemType::WORK_ITEM_TYPE_DEFAULT;
 
-	if (item_contains_position(_mission_item)) {
+    position_setpoint_triplet_s *pos_sp_triplet = _navigator->get_position_setpoint_triplet();
+    const position_setpoint_s current_setpoint_copy = pos_sp_triplet->current;
 
-		handleTakeoff(new_work_item_type, next_mission_items, num_found_items);
+    /* Skip VTOL/FW Takeoff item if in air, fixed-wing and didn't start the takeoff already*/
+    bool skip_takeoff = (_mission_item.nav_cmd == NAV_CMD_VTOL_TAKEOFF || _mission_item.nav_cmd == NAV_CMD_TAKEOFF) &&
+                        (_work_item_type == WorkItemType::WORK_ITEM_TYPE_DEFAULT) &&
+                        (_vehicle_status_sub.get().vehicle_type == vehicle_status_s::VEHICLE_TYPE_FIXED_WING) &&
+                        !_land_detected_sub.get().landed;
 
-		handleLanding(new_work_item_type, next_mission_items, num_found_items);
+    mavlink_log_info(_navigator->get_mavlink_log_pub(), "Current mission item: nav_cmd=%d, lat=%.7f, lon=%.7f, alt=%.2f",
+                     _mission_item.nav_cmd, (double)_mission_item.lat, (double)_mission_item.lon, (double)_mission_item.altitude);
 
-		// TODO Precision land needs to be refactored: https://github.com/PX4/Firmware/issues/14320
-		if (new_work_item_type != WorkItemType::WORK_ITEM_TYPE_PRECISION_LAND) {
-			mission_item_to_position_setpoint(_mission_item, &pos_sp_triplet->current);
-		}
+    if ((double)_mission_item.altitude < 0) {
+        mavlink_log_info(_navigator->get_mavlink_log_pub(), "Negative alt detected: attempting crash mode registering");
+    }
+
+    if (skip_takeoff) {
+        if (setNextMissionItem()) {
+            if (!loadCurrentMissionItem()) {
+                mavlink_log_info(_navigator->get_mavlink_log_pub(), "Failed to load current item, setting end of mission");
+                setEndOfMissionItems();
+                return;
+            }
+
+        } else {
+            mavlink_log_info(_navigator->get_mavlink_log_pub(), "Failed to set next item, setting end of mission");
+            setEndOfMissionItems();
+            return;
+        }
+    }
+
+    if (item_contains_position(_mission_item)) {
+        mavlink_log_info(_navigator->get_mavlink_log_pub(), "Current item contains position");
+
+        handleTakeoff(new_work_item_type, next_mission_items, num_found_items);
+        handleLanding(new_work_item_type, next_mission_items, num_found_items);
+
+        // TODO Precision land needs to be refactored: https://github.com/PX4/Firmware/issues/14320
+        if (new_work_item_type != WorkItemType::WORK_ITEM_TYPE_PRECISION_LAND) {
+            mission_item_to_position_setpoint(_mission_item, &pos_sp_triplet->current);
+        }
+		if (_mission_item.nav_cmd == NAV_CMD_CRASHPOINT) {
+			PX4_INFO("Handling crashpoint at index %d", _mission.current_seq);
+			_mission_item.nav_cmd = NAV_CMD_WAYPOINT;
+			_mission_item.autocontinue = false;
+			}
 
 		// prevent fixed wing lateral guidance from loitering at a waypoint as part of a mission landing if the altitude
 		// is not achieved.

@@ -187,13 +187,13 @@ void Mission::setActiveMissionItems()
 
     /*********************************** handle mission item *********************************************/
     if (BUILD_TESTS_NUM_WP){
-        mavlink_log_info(_navigator->get_mavlink_log_pub(), "Current Mission Index: %d / Total Missions: %d", _mission.current_seq, _mission.count);
+        // mavlink_log_info(_navigator->get_mavlink_log_pub(), "Current Mission Index: %d / Total Missions: %d", _mission.current_seq, _mission.count);
 	if(!((_mission.count -_mission.current_seq)==1)||(_mission.count -_mission.current_seq==2)){
 		CrashPointManager.UpdatePrevMissionBeforeCrash(_mission_item);
 		PrintMissionItem_____(CrashPointManager._prev_mission);
 	}
 	else {
-		mavlink_log_info(_navigator->get_mavlink_log_pub(), "Last Mission Detected Verifiying integrity of crash point");
+		// mavlink_log_info(_navigator->get_mavlink_log_pub(), "Last Mission Detected Verifiying integrity of crash point");
 		CrashPointManager.UpdateActualCrashPoint(_mission_item);
 		CrashPointManager._virtual_point_mission = CrashPointManager._prev_mission;
 		CrashPointManager.CalculateVirtualWaypoint();
@@ -209,7 +209,7 @@ void Mission::setActiveMissionItems()
 		}
 	}
 	else {
-		mavlink_log_info(_navigator->get_mavlink_log_pub(), "Crash Mission Detected Verifiying integrity of crash point");
+		// mavlink_log_info(_navigator->get_mavlink_log_pub(), "Crash Mission Detected Verifiying integrity of crash point");
 		CrashPointManager.UpdateActualCrashPoint(_mission_item);
 		CrashPointManager._virtual_point_mission = CrashPointManager._prev_mission;
 		CrashPointManager.CalculateVirtualWaypoint();
@@ -228,23 +228,23 @@ void Mission::setActiveMissionItems()
                         (_vehicle_status_sub.get().vehicle_type == vehicle_status_s::VEHICLE_TYPE_FIXED_WING) &&
                         !_land_detected_sub.get().landed;
 
-    mavlink_log_info(_navigator->get_mavlink_log_pub(), "Current mission item: nav_cmd=%d, lat=%.7f, lon=%.7f, alt=%.2f",
-                     _mission_item.nav_cmd, (double)_mission_item.lat, (double)_mission_item.lon, (double)_mission_item.altitude);
+//     mavlink_log_info(_navigator->get_mavlink_log_pub(), "Current mission item: nav_cmd=%d, lat=%.7f, lon=%.7f, alt=%.2f",
+//                      _mission_item.nav_cmd, (double)_mission_item.lat, (double)_mission_item.lon, (double)_mission_item.altitude);
 
     if ((double)_mission_item.altitude < 0) {
-        mavlink_log_info(_navigator->get_mavlink_log_pub(), "Negative alt detected: attempting crash mode registering");
+        // mavlink_log_info(_navigator->get_mavlink_log_pub(), "Negative alt detected: attempting crash mode registering");
     }
 
     if (skip_takeoff) {
         if (setNextMissionItem()) {
             if (!loadCurrentMissionItem()) {
-                mavlink_log_info(_navigator->get_mavlink_log_pub(), "Failed to load current item, setting end of mission");
+                // mavlink_log_info(_navigator->get_mavlink_log_pub(), "Failed to load current item, setting end of mission");
                 setEndOfMissionItems();
                 return;
             }
 
         } else {
-            mavlink_log_info(_navigator->get_mavlink_log_pub(), "Failed to set next item, setting end of mission");
+        //     mavlink_log_info(_navigator->get_mavlink_log_pub(), "Failed to set next item, setting end of mission");
             setEndOfMissionItems();
             return;
         }
@@ -252,11 +252,11 @@ void Mission::setActiveMissionItems()
 
     if (item_contains_position(_mission_item)) {
 	if (_mission_item.nav_cmd == NAV_CMD_CRASHPOINT) {
-		PX4_INFO("Handling crashpoint at index %d", _mission.current_seq);
+		// PX4_INFO("Handling crashpoint at index %d", _mission.current_seq);
 		_mission_item.nav_cmd = NAV_CMD_WAYPOINT;
 		_mission_item.autocontinue = false;
 		}
-        mavlink_log_info(_navigator->get_mavlink_log_pub(), "Current item contains position");
+        // mavlink_log_info(_navigator->get_mavlink_log_pub(), "Current item contains position");
 
         handleTakeoff(new_work_item_type, next_mission_items, num_found_items);
         handleLanding(new_work_item_type, next_mission_items, num_found_items);
@@ -266,7 +266,7 @@ void Mission::setActiveMissionItems()
             mission_item_to_position_setpoint(_mission_item, &pos_sp_triplet->current);
         }
 		if (_mission_item.nav_cmd == NAV_CMD_CRASHPOINT) {
-			PX4_INFO("Handling crashpoint at index %d", _mission.current_seq);
+			// PX4_INFO("Handling crashpoint at index %d", _mission.current_seq);
 			_mission_item.nav_cmd = NAV_CMD_WAYPOINT;
 			_mission_item.autocontinue = false;
 			}

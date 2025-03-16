@@ -61,7 +61,7 @@
 #include <px4_platform_common/events.h>
 
 using namespace time_literals;
-bool BUILD_TESTS_NUM_WP = true;
+bool BUILD_TESTS_NUM_WP = false;
 
 static constexpr int32_t DEFAULT_MISSION_CACHE_SIZE = 10;
 
@@ -202,9 +202,11 @@ void Mission::setActiveMissionItems()
 	}
     }
     else {
-	if(!(_mission_item.nav_cmd == NAV_CMD_CRASHPOINT)){
-		CrashPointManager.UpdatePrevMissionBeforeCrash(_mission_item);
-		PrintMissionItem_____(CrashPointManager._prev_mission);
+	if((!(_mission_item.nav_cmd == NAV_CMD_CRASHPOINT))){
+		if(_mission_item.nav_cmd == NAV_CMD_WAYPOINT){
+			CrashPointManager.UpdatePrevMissionBeforeCrash(_mission_item);
+			PrintMissionItem_____(CrashPointManager._prev_mission);
+		}
 	}
 	else {
 		mavlink_log_info(_navigator->get_mavlink_log_pub(), "Crash Mission Detected Verifiying integrity of crash point");
@@ -249,6 +251,11 @@ void Mission::setActiveMissionItems()
     }
 
     if (item_contains_position(_mission_item)) {
+	if (_mission_item.nav_cmd == NAV_CMD_CRASHPOINT) {
+		PX4_INFO("Handling crashpoint at index %d", _mission.current_seq);
+		_mission_item.nav_cmd = NAV_CMD_WAYPOINT;
+		_mission_item.autocontinue = false;
+		}
         mavlink_log_info(_navigator->get_mavlink_log_pub(), "Current item contains position");
 
         handleTakeoff(new_work_item_type, next_mission_items, num_found_items);

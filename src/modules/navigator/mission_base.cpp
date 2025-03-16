@@ -50,11 +50,9 @@ MissionBase::MissionBase(Navigator *navigator, int32_t dataman_cache_size_signed
 	MissionBlock(navigator, navigator_state_id),
 	ModuleParams(navigator),
 	_dataman_cache_size_signed(dataman_cache_size_signed)
-{
+	{
 	_dataman_cache.resize(abs(dataman_cache_size_signed));
 	CrashPointManager.ResetMissionHandler();
-
-	// Reset _mission here, and listen on changes on the uorb topic instead of initialize from dataman.
 	_mission.mission_dataman_id = DM_KEY_WAYPOINTS_OFFBOARD_0;
 	_mission.fence_dataman_id = DM_KEY_FENCE_POINTS_0;
 	_mission.safepoint_dataman_id = DM_KEY_SAFE_POINTS_0;
@@ -65,9 +63,8 @@ MissionBase::MissionBase(Navigator *navigator, int32_t dataman_cache_size_signed
 	_mission.mission_id = 0;
 	_mission.geofence_id = 0;
 	_mission.safe_points_id = 0;
-
 	_mission_pub.advertise();
-}
+	}
 
 
 void
